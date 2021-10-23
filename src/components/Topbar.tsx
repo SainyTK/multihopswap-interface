@@ -4,7 +4,7 @@ import Wallet from './Wallet'
 
 const Topbar = () => {
     return (
-        <div className='flex justify-between'>
+        <div className='flex items-start justify-between'>
             <Logo/>
             <Wallet />
         </div>

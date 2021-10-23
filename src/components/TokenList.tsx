@@ -1,13 +1,14 @@
-import { formatUnits, parseUnits } from '@ethersproject/units';
-import React, { useEffect, useState } from 'react';
-import { TOKENS } from '../constants/tokens';
+import { formatUnits } from '@ethersproject/units';
+import React, { useEffect } from 'react';
+import { ETH, getTokenList, TOKENS } from '../constants/tokens';
 import { useStore } from '../store';
 import { ERC20__factory } from '../typechain';
 import { TokenType } from '../types/TokenType';
 import { decimals } from '../utils/decimals';
-import { getSigner } from '../utils/getProvider';
+import { ethereum, getSigner } from '../utils/getProvider';
 
-const tokenPlaceholder = '/assets/coin-placeholder.png';
+const ADDRESS_LENGTH = 42;
+const TOKEN_PLACEHOLDER = '/assets/coin-placeholder.png';
 
 type PropsType = {
     search?: string,
@@ -25,20 +26,39 @@ const TokenList: React.FC<PropsType> = ({ search, onSelect }) => {
     const setBalances = useStore(state => state.setBalances);
 
     useEffect(() => {
-        tokenList.forEach((token) => {
+        const initialTokens = loadInitialTokens();
+        Object.values(initialTokens).forEach((token) => {
             fetchTokenInfo(token.address)
         })
     }, []);
 
     useEffect(() => {
-        if (search && search.length === 42) {
+        if (search && search.length === ADDRESS_LENGTH) {
             fetchTokenInfo(search);
         }
     }, [search]);
 
+    const loadInitialTokens = () => {
+        const eth = ethereum();
+        if (eth) {
+            const networkID = +eth.networkVersion;
+            const tokenList = getTokenList(networkID);
+            const tokensStr = localStorage.getItem(`tokens:${networkID}`);
+            const localTokens: Record<string, TokenType> = tokensStr ? JSON.parse(tokensStr) : {};
+            console.log({ networkID, tokenList, localTokens });
+            return { ...tokenList, ...localTokens }
+        } else {
+            return {}
+        }
+    }
+
     const handleImageError = (symbol: string) => {
-        tokens[symbol].imageUrl = tokenPlaceholder;
-        setTokens({ ...tokens });
+        const eth = ethereum();
+        if (eth) {
+            const networkID = +eth.networkVersion;
+            tokens[symbol].imageUrl = TOKEN_PLACEHOLDER;
+            setTokens(networkID, { ...tokens });
+        }
     }
 
     const handleSelect = (token: TokenType) => {
@@ -55,11 +75,10 @@ const TokenList: React.FC<PropsType> = ({ search, onSelect }) => {
         return true;
     }
 
-    const filteredTokens = tokenList.filter(filterToken);
-
     const fetchTokenInfo = async (address: string) => {
         const signer = getSigner();
-        if (signer && address) {
+        const eth = ethereum();
+        if (signer && eth && address) {
             try {
                 const erc20 = ERC20__factory.connect(address, signer);
                 const walletAddress = await signer.getAddress();
@@ -70,7 +89,8 @@ const TokenList: React.FC<PropsType> = ({ search, onSelect }) => {
                     erc20.balanceOf(walletAddress)
                 ]);
                 const tokenInfo = { name, symbol, decimals, address, imageUrl: `/assets/${symbol}.png` };
-                setTokens({ ...tokens, [symbol]: tokenInfo });
+                const networkID = +eth.networkVersion;
+                setTokens(networkID, { ...tokens, [symbol]: tokenInfo });
                 setBalances({ ...balances, [symbol]: +formatUnits(tokenBalance, decimals) });
             } catch (e) {
 
@@ -78,30 +98,40 @@ const TokenList: React.FC<PropsType> = ({ search, onSelect }) => {
         }
     }
 
+    const filteredTokens = tokenList.filter(filterToken);
+
+    const renderToken = (token: TokenType, isLast = false) => {
+        return (
+            <div
+                className={`flex items-center justify-between p-4 hover:bg-gray-100 cursor-pointer ${isLast && 'rounded-b-2xl'}`}
+                onClick={() => handleSelect(token)}
+            >
+                <div className="flex space-x-4 items-center">
+                    <img
+                        src={token.imageUrl}
+                        alt="token"
+                        onError={() => handleImageError(token.symbol)}
+                        className='w-7 h-7 rounded-full shadow'
+                    />
+                    <div>
+                        <div>{token.symbol}</div>
+                        <div className="font-light text-sm text-gray-400">{token.name}</div>
+                    </div>
+                </div>
+                <div>
+                    {decimals(balances[token.symbol] || 0, 4, 4)}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div>
+            {renderToken(ETH)}
             {
                 filteredTokens.map((token, index) => (
-                    <div
-                        key={index}
-                        className={`flex items-center justify-between p-4 hover:bg-gray-100 cursor-pointer ${index === filteredTokens.length - 1 && 'rounded-b-2xl'}`}
-                        onClick={() => handleSelect(token)}
-                    >
-                        <div className="flex space-x-4 items-center">
-                            <img
-                                src={token.imageUrl}
-                                alt="token"
-                                onError={() => handleImageError(token.symbol)}
-                                className='w-7 h-7 rounded-full shadow'
-                            />
-                            <div>
-                                <div>{token.symbol}</div>
-                                <div className="font-light text-sm text-gray-400">{token.name}</div>
-                            </div>
-                        </div>
-                        <div>
-                            {decimals(balances[token.symbol] || 0, 4, 4)}
-                        </div>
+                    <div key={index}>
+                        {renderToken(token, index === filteredTokens.length - 1)}
                     </div>
                 ))
             }

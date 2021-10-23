@@ -10,9 +10,9 @@ import SelectInputModal from './SelectInputModal';
 import Token from './Token';
 
 type PropsType = {
-    inputAmount: number,
+    inputAmount: string,
     inputToken: TokenType,
-    onChangeInput: (input: number) => void,
+    onChangeInput: (input: string) => void,
     onChangeToken: (token: TokenType) => void
 }
 
@@ -47,13 +47,13 @@ const InputAmount: React.FC<PropsType> = ({ inputAmount, inputToken, onChangeInp
 
     const handleChangeInputAmount: React.ChangeEventHandler<HTMLInputElement> = (e) => {
         if (!isNaN(+e.target.value)) {
-            onChangeInput && onChangeInput(+e.target.value)
+            onChangeInput && onChangeInput(e.target.value)
         }
     }
 
     const handleChangeToMax = () => {
         if (balances[inputToken.symbol]) {
-            onChangeInput && onChangeInput(balances[inputToken.symbol])
+            onChangeInput && onChangeInput(balances[inputToken.symbol].toString())
         }
     }
 
@@ -73,7 +73,7 @@ const InputAmount: React.FC<PropsType> = ({ inputAmount, inputToken, onChangeInp
                         type="text"
                         value={inputAmount}
                         onChange={handleChangeInputAmount}
-                        className='border-none text-xl font-semibold bg-gray-50 focus:outline-none text-right'
+                        className='w-full border-none text-xl font-semibold bg-gray-50 focus:outline-none text-right'
                         placeholder="0.0"
                     />
                 </div>

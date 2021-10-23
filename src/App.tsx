@@ -1,13 +1,14 @@
 import { useState } from 'react'
+import Notification from './components/Notification';
 import SwapPanel from './components/SwapPanel';
 import Topbar from './components/Topbar';
-import { TOKENS } from './constants/tokens';
+import { ETH } from './constants/tokens';
 import { TokenType } from './types/TokenType';
 
 function App() {
 
-  const [inputToken, setInputToken] = useState(TOKENS['ETH']);
-  const [inputAmount, setInputAmount] = useState(0);
+  const [inputToken, setInputToken] = useState(ETH);
+  const [inputAmount, setInputAmount] = useState('');
   const [route, setRoute] = useState<TokenType[]>([]);
   const [fees, setFees] = useState<number[]>([]);
 
@@ -30,6 +31,8 @@ function App() {
           onChangeFees={fees => setFees(fees)}
         />
       </section>
+
+      <Notification />
 
     </div>
   )

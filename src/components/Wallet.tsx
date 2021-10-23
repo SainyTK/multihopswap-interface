@@ -5,6 +5,7 @@ import { decimals } from '../utils/decimals';
 import { ethereum } from '../utils/getProvider';
 import { shorten } from '../utils/shorten';
 import ConnectBtn from './ConnectBtn';
+import Network from './Network';
 
 const Wallet = () => {
 
@@ -42,10 +43,19 @@ const Wallet = () => {
     const reload = () => window.location.reload();
 
     return !address ? <ConnectBtn onClick={handleConnect} /> : (
-        <div className='flex'>
-            <div className='rounded-tl-2xl rounded-bl-2xl bg-gray-100 p-2 pr-6 -mr-4'>{decimals(balances['ETH'] || 0, 4, 4)} ETH</div>
-            <div className='rounded-2xl bg-white p-2'>{shorten(address)}</div>
+        <div className="sm:flex space-x-2">
+            <div className="hidden sm:block">
+                <Network />
+            </div>
+            <div className='flex mb-2'>
+                <div className='rounded-tl-2xl rounded-bl-2xl bg-gray-100 p-2 pr-6 -mr-4'>{decimals(balances['ETH'] || 0, 4, 4)} ETH</div>
+                <div className='rounded-2xl bg-white p-2'>{shorten(address)}</div>
+            </div>
+            <div className="flex justify-end sm:hidden">
+                <Network />
+            </div>
         </div>
+
     )
 }
 

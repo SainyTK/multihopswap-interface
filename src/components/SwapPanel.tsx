@@ -1,19 +1,22 @@
-import React, { useState } from 'react'
-import useVisibility from '../hooks/useVisibility'
+import { parseUnits } from '@ethersproject/units'
+import { formatUnits } from 'ethers/lib/utils'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { getAddressList } from '../constants/addressList'
+import { getTokenList } from '../constants/tokens'
+import { Quoter__factory } from '../typechain'
 import { TokenType } from '../types/TokenType'
-import AddToken from './AddToken'
-import AddTokenModal from './AddTokenModal'
+import { encodePath } from '../utils/encoder'
+import { ethereum, getSigner } from '../utils/getProvider'
+import ConfirmBtn from './ConfirmBtn'
 import InputAmount from './InputAmount'
-import Modal from './Modal'
-import SelectInputModal from './SelectInputModal'
-import Token from './Token'
+import InputRoute from './InputRoute'
 
 type PropsType = {
     route: TokenType[],
     fees: number[],
     inputToken: TokenType,
-    inputAmount: number,
-    onChangeInputAmount: (input: number) => void,
+    inputAmount: string,
+    onChangeInputAmount: (input: string) => void,
     onChangeInputToken: (token: TokenType) => void,
     onChangeRoute: (route: TokenType[]) => void,
     onChangeFees: (fees: number[]) => void
@@ -21,38 +24,51 @@ type PropsType = {
 
 const SwapPanel: React.FC<PropsType> = ({ route, fees, inputAmount, inputToken, onChangeInputAmount, onChangeInputToken, onChangeRoute, onChangeFees }) => {
 
-    const addTokenModal = useVisibility();
+    const [output, setOutput] = useState<number>(0);
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState("");
 
-    const [selectedIndex, setSelectedIndex] = useState(0);
+    useEffect(() => {
+        getSwapOutput()
+    }, [route, fees, inputAmount, inputToken]);
 
-    const handleUpdateRoute = (token: TokenType) => {
-        if (!!onChangeRoute) {
-            route[selectedIndex] = token;
-            onChangeRoute && onChangeRoute([...route])
+    const getSwapOutput = async () => {
+        const eth = ethereum();
+        const signer = getSigner();
+        if (+inputAmount === 0) {
+            setOutput(0);
+            setErr("");
+        } else if (eth && signer && route.length && +inputAmount > 0) {
+            setLoading(true);
+
+            const networkID = +eth.networkVersion;
+            const addressList = getAddressList(networkID);
+            const tokenList = getTokenList(networkID);
+            const quoter = await Quoter__factory.connect(addressList.SWAP_V3_QUOTER, signer);
+            const WETH = tokenList["WETH"];
+
+            const formattedRoute = [inputToken, ...route].map((token) => token.symbol === "ETH" ? WETH : token);
+            const formattedFees = fees.map((fee) => fee * (10 ** 4));
+
+            const pathInBytes = encodePath(formattedRoute, formattedFees);
+            const parsedInput = parseUnits(inputAmount.toString(), formattedRoute[0].decimals);
+
+            try {
+                const amountOut = await quoter.callStatic.quoteExactInput(pathInBytes, parsedInput);
+                setOutput(+formatUnits(amountOut, formattedRoute[formattedRoute.length - 1].decimals));
+                setErr("");
+            } catch (e) {
+                setOutput(0);
+                setErr("Invalid route");
+            }
+
+            setLoading(false);
         }
-        addTokenModal.hide();
-    }
 
-    const handleUpdateFees = (fee: number) => {
-        if (!!onChangeFees) {
-            fees[selectedIndex] = fee;
-            onChangeFees && onChangeFees([...fees])
-        }
     }
-
-    const handleAddToken = (index: number) => {
-        setSelectedIndex(index);
-        addTokenModal.show();
-    }
-
-    const handleCutRoute = (index: number) => {
-        onChangeRoute && onChangeRoute(route.filter((t, id) => id !== index));
-        onChangeFees && onChangeFees(fees.filter((f, id) => id !== index));
-    }
-
 
     return (
-        <div className="rounded-3xl shadow-xl p-2 w-4/12 bg-white">
+        <div className="rounded-3xl shadow-xl p-2 w-72 sm:w-6/12 md:w-5/12 lg:w-4/12 bg-white">
             <div className="mb-2 p-2">Swap</div>
 
             <InputAmount
@@ -62,39 +78,22 @@ const SwapPanel: React.FC<PropsType> = ({ route, fees, inputAmount, inputToken, 
                 onChangeToken={onChangeInputToken}
             />
 
-            <div className='p-4 rounded-2xl border border-gray-200 hover:border-gray-300 bg-gray-50 mb-2'>
-                <div className="flex flex-wrap items-center space-x-1">
-                    <Token className="mb-6" token={inputToken} size="sm" />
-                    <div onClick={() => handleCutRoute(0)} className={`pb-6 text-gray-400 ${route.length > 0 && `cursor-pointer`}`}> - </div>
-                    {
-                        route.map((token, index) => (
-                            <div key={index} className="flex items-center space-x-2">
-                                <div className="mb-2">
-                                    <Token className="mb-1" token={token} size="sm" onClick={() => handleAddToken(index)} />
-                                    <div className='text-xs font-light text-center'>{fees[index]}%</div>
-                                </div>
-                                <div onClick={() => handleCutRoute(index + 1)} className={`pb-6 text-gray-400 ${index < route.length - 1 && `cursor-pointer`}`}> - </div>
-                            </div>
-                        ))
-                    }
-                    <AddToken className="mb-6" onClick={() => handleAddToken(route.length)} />
-                </div>
-                <div className='text-right'>
-                    {
-                        route.length > 0 && (
-                            <span className="text-xl">{0} {route[route.length - 1].symbol} </span>
-                        )
-                    }
-                </div>
-            </div>
+            <InputRoute
+                inputToken={inputToken}
+                route={route}
+                fees={fees}
+                output={output}
+                onChangeRoute={onChangeRoute}
+                onChangeFees={onChangeFees}
+            />
 
-            <AddTokenModal
-                visible={addTokenModal.visible}
-                onClose={addTokenModal.hide}
-                selectedFee={fees[selectedIndex]}
-                selectedToken={route[selectedIndex]}
-                onSelectToken={handleUpdateRoute}
-                onSelectFee={handleUpdateFees}
+            <ConfirmBtn
+                inputToken={inputToken}
+                inputAmount={+inputAmount}
+                route={route}
+                fees={fees}
+                loadingOutput={loading}
+                fetchError={err}
             />
 
         </div>

@@ -24,7 +24,7 @@ const Modal: React.FC<Props> = ({ title, visible, onClose, children }) => {
                 className="overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none"
             >
                 <div className="py-10 justify-center items-center flex flex-col">
-                    <div className="w-4/12 bg-white rounded-2xl my-20" ref={ref => modelRef.current = ref}>
+                    <div className="sm:w-6/12 md:w-5/12 lg:w-4/12 bg-white rounded-2xl my-20" ref={ref => modelRef.current = ref}>
                         <div className="flex justify-between items-center p-4">
                             <div className="text-lg">{title}</div>
                             <Close onClick={handleClose} className="cursor-pointer" />

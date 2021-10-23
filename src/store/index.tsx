@@ -1,43 +1,52 @@
 import create from 'zustand';
-import { TOKENS } from '../constants/tokens';
+import { NetworkID } from '../enum/NetworkID';
+import { NotificationType } from '../types/NotificationType';
 import { TokenType } from '../types/TokenType';
-
-const getInitialTokens = () => {
-    const tokensStr = localStorage.getItem('tokens');
-    const localTokens = tokensStr ? JSON.parse(tokensStr) : {};
-    return { ...TOKENS, ...localTokens }
-}
-
-const getInitialBalances = () => {
-    const balancesStr = localStorage.getItem('balances');
-    const localBalances = balancesStr ? JSON.parse(balancesStr) : {};
-    return localBalances;
-}
 
 interface Store {
     address: string,
     tokens: Record<string, TokenType>,
     balances: Record<string, number>,
+    allowances: Record<string, number>,
+    notifications: NotificationType[],
     setAddress: (address: string) => void,
-    setTokens: (tokens: Record<string, TokenType>) => void,
-    setBalances: (balances: Record<string, number>) => void
+    setTokens: (networkID: NetworkID, tokens: Record<string, TokenType>) => void,
+    setBalances: (balances: Record<string, number>) => void,
+    setAllowances: (allowances: Record<string, number>) => void,
+    pushNotification: (notification: NotificationType) => void
 }
 
 export const useStore = create<Store>((set, get) => ({
     address: '',
-    tokens: getInitialTokens(),
-    balances: getInitialBalances(),
+    tokens: {},
+    balances: {},
+    allowances: {},
+    notifications: [],
     setAddress: (address: string) => {
         set({ address })
     },
-    setTokens: (tokens: Record<string, TokenType>) => {
+    setTokens: (networkID: NetworkID, tokens: Record<string, TokenType>) => {
         const updatedTokens = { ...get().tokens, ...tokens }
         set({ tokens: updatedTokens })
-        localStorage.setItem('tokens', JSON.stringify(updatedTokens));
+        localStorage.setItem(`tokens:${networkID}`, JSON.stringify(updatedTokens));
     },
     setBalances: (balances: Record<string, number>) => {
         const updatedBalances = { ...get().balances, ...balances };
         set({ balances: updatedBalances })
-        localStorage.setItem('balances', JSON.stringify(updatedBalances));
+    },
+    setAllowances: (allowances: Record<string, number>) => {
+        const updatedAllowances = { ...get().allowances, ...allowances };
+        set({ allowances: updatedAllowances })
+    },
+    pushNotification: (notification: NotificationType) => {
+        const TIMEOUT = 3000;
+        const id = Math.floor(Math.random() * 10000);
+        notification.id = id;
+        const updatedNotification = [...get().notifications, notification];
+        set({ notifications: updatedNotification });
+
+        setTimeout(() => {
+            set({ notifications: get().notifications.filter(noti => noti.id !== id) });
+        }, TIMEOUT);
     }
 }))

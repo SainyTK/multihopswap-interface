@@ -53,7 +53,7 @@ const AddTokenModal: React.FC<PropsType> = ({ visible, selectedToken, selectedFe
                 <div className="mb-2">Fee pool</div>
                 <div className="flex space-x-1">
                     {
-                        [1, 0.3, 0.1].map((fee) => (
+                        [1, 0.3, 0.05].map((fee) => (
                             <div
                                 key={fee}
                                 onClick={() => handleUpdateFee(fee)}
